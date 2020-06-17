@@ -20,13 +20,21 @@ class Experiment():
 			self.parameters['timestamp'] = str(int(time.time()))
 
 	def get_database_connection(self):
-		database_connection = pymysql.connect(host = self.database_config['host'],
-											  port = self.database_config['port'],
-											  user = self.database_config['user'],
-											  passwd = self.database_config['passwd'],
-											  db = self.database_config['db'],
-											  cursorclass = pymysql.cursors.DictCursor)
-		return database_connection
+		try:
+			database_connection = pymysql.connect(host = self.database_config['host'],
+												  port = self.database_config['port'],
+												  user = self.database_config['user'],
+												  passwd = self.database_config['passwd'],
+												  db = self.database_config['db'],
+												  cursorclass = pymysql.cursors.DictCursor)
+
+			if connection.is_connected():
+				return database_connection
+
+		except pymysql.Error:
+			print('Error while connecting to database server. Check database configuration and connectivity.')
+			print('Database configuration used: ', self.database_config)
+			raise
 
 	def save_results(self, clear_results=True):
 		cursor = self.database_connection.cursor()
