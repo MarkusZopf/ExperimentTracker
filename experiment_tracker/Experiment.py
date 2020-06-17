@@ -28,8 +28,7 @@ class Experiment():
 												  db = self.database_config['db'],
 												  cursorclass = pymysql.cursors.DictCursor)
 
-			if connection.is_connected():
-				return database_connection
+			return database_connection
 
 		except pymysql.Error:
 			print('Error while connecting to database server. Check database configuration and connectivity.')
