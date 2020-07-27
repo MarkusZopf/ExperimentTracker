@@ -2,10 +2,11 @@ import pymysql
 import time
 
 class Experiment():
-	parameters = dict()
-	results = dict()
 
 	def __init__(self, database_config, project_name, add_timestamp=True):
+		self.parameters = dict()
+		self.results = dict()
+
 		self.database_config = database_config
 		self.project_name = project_name
 		
@@ -136,7 +137,6 @@ class Experiment():
 
 	def is_experiment_finished(self):
 		"""Tests if an experiments with the same parameters (except of the timestamp) is already set as finished in the database."""
-		
 
 		condition = ''
 		for parameter_name, parameter_value in self.parameters.items():
