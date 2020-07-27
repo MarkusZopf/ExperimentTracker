@@ -8,13 +8,14 @@ class Experiment():
 	def __init__(self, database_config, project_name, add_timestamp=True):
 		self.database_config = database_config
 		self.project_name = project_name
-		self.database_connection = self.get_database_connection()
-
-		cursor = self.database_connection.cursor()
+		
+		database_connection = self.get_database_connection()
+		cursor = database_connection.cursor()
 		cursor._defer_warnings = True
 		cursor.execute('CREATE TABLE IF NOT EXISTS ' + self.project_name + ' (id INT NOT NULL AUTO_INCREMENT, finished BOOLEAN DEFAULT NULL, PRIMARY KEY (id));')
-		self.database_connection.commit()
+		database_connection.commit()
 		cursor.close()
+		database_connection.close()
 
 		if add_timestamp:
 			self.parameters['timestamp'] = str(int(time.time()))
@@ -46,10 +47,12 @@ class Experiment():
 			columns = 'finished, ' + columns
 			values = '1, ' + values
 
-		cursor = self.database_connection.cursor()
+		database_connection = self.get_database_connection()
+		cursor = database_connection.cursor()
 		cursor.execute('INSERT INTO ' + self.project_name + ' (' + columns + ') VALUES (' + values + ')')
-		self.database_connection.commit()
+		database_connection.commit()
 		cursor.close()
+		database_connection.close()
 
 		if clear_results:
 			self.results.clear()
@@ -76,10 +79,13 @@ class Experiment():
 			return True
 
 		else:
-			cursor = self.database_connection.cursor()
+			database_connection = self.get_database_connection()
+			cursor = database_connection.cursor()
 			cursor.execute('SHOW COLUMNS FROM ' + self.project_name + ' LIKE %(column_name)s;', {'table_name': self.project_name, 'column_name': column_name})
 			does_column_already_exist = len(cursor.fetchall()) == 1
 			cursor.close()
+			database_connection.close()
+
 			if does_column_already_exist:
 				self.existing_columns.append(column_name)
 			return does_column_already_exist
@@ -94,9 +100,11 @@ class Experiment():
 		else:
 			field_definition = 'TEXT NULL DEFAULT NULL'
 
-		cursor = self.database_connection.cursor()
+		database_connection = self.get_database_connection()
+		cursor = database_connection.cursor()
 		cursor.execute('ALTER TABLE ' + self.project_name + ' ADD COLUMN ' + column_name + ' ' + field_definition +';')
 		cursor.close()
+		database_connection.close()
 
 	def does_row_already_exist(self, parameter_names):
 		condition = ''
@@ -117,10 +125,12 @@ class Experiment():
 
 		condition = condition[:-5]
 
-		cursor = self.database_connection.cursor()
+		database_connection = self.get_database_connection()
+		cursor = database_connection.cursor()
 		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE ' + condition + ';')
 		result = int(cursor.fetchone()['COUNT(*)']) > 0
 		cursor.close()
+		database_connection.close()
 		
 		return result
 
@@ -147,9 +157,11 @@ class Experiment():
 
 		condition = condition[:-5]
 		
-		cursor = self.database_connection.cursor()
+		database_connection = self.get_database_connection()
+		cursor = database_connection.cursor()
 		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE finished = 1 AND ' + condition + ';')
 		result = int(cursor.fetchone()['COUNT(*)']) > 0
 		cursor.close()
+		database_connection.close()
 
 		return result
