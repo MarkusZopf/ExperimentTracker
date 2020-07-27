@@ -12,7 +12,7 @@ class Experiment():
 
 		cursor = self.database_connection.cursor()
 		cursor._defer_warnings = True
-		cursor.execute('CREATE TABLE IF NOT EXISTS ' + self.project_name + ' (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id));')
+		cursor.execute('CREATE TABLE IF NOT EXISTS ' + self.project_name + ' (id INT NOT NULL AUTO_INCREMENT, finished BOOLEAN DEFAULT NULL, PRIMARY KEY (id));')
 		self.database_connection.commit()
 		cursor.close()
 
@@ -35,7 +35,7 @@ class Experiment():
 			print('Database configuration used: ', self.database_config)
 			raise
 
-	def save_results(self, clear_results=True):
+	def save_results(self, clear_results=True, set_finished=False):
 		cursor = self.database_connection.cursor()
 
 		parameter_columns, parameter_values = self.create_sql_string(self.parameters, cursor)
@@ -43,6 +43,10 @@ class Experiment():
 
 		columns = parameter_columns + ', ' + results_columns
 		values = parameter_values + ', ' + results_values
+
+		if set_finished:
+			columns = 'finished, ' + columns
+			values = '1, ' + values
 
 		cursor.execute('INSERT INTO ' + self.project_name + ' (' + columns + ') VALUES (' + values + ')')
 
@@ -105,7 +109,7 @@ class Experiment():
 			value = self.parameters[parameter_name]
 			if type(value) is bool:
 				condition += str(int(value))
-			if type(value) is int or type(value) is float:
+			elif type(value) is int or type(value) is float:
 				condition += str(value)
 			else:
 				condition += '\'' + str(value) + '\''
@@ -115,7 +119,37 @@ class Experiment():
 		condition = condition[:-5]
 
 		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE ' + condition + ';')
-		result = cursor.fetchone() is not None
+		result = int(cursor.fetchone()['COUNT(*)']) > 0
+		cursor.close()
+		
+		return result
+
+	def is_experiment_finished(self):
+		"""Tests if an experiments with the same parameters (except of the timestamp) is already set as finished in the database."""
+		cursor = self.database_connection.cursor()
+
+		condition = ''
+		for parameter_name, parameter_value in self.parameters.items():
+			if not self.does_column_already_exist(cursor, parameter_name): 
+				cursor.close()
+				return False # an experiment with the specified parameter cannot exist if the corresponding column does not exist
+
+			if parameter_name != 'timestamp':
+				condition += parameter_name + '='
+				parameter_value = self.parameters[parameter_name]
+				if type(parameter_value) is bool:
+					condition += str(int(parameter_value))
+				elif type(parameter_value) is int or type(parameter_value) is float:
+					condition += str(parameter_value)
+				else:
+					condition += '\'' + str(parameter_value) + '\''
+
+				condition += ' AND '
+
+		condition = condition[:-5]
+		
+		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE finished = 1 AND ' + condition + ';')
+		result = int(cursor.fetchone()['COUNT(*)']) > 0
 		cursor.close()
 
 		return result
