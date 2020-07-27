@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
   name = 'experiment_tracker',
-  version = '0.0.6',
+  version = '0.0.7',
   author = 'Markus Zopf',
   description = 'Simple tool to track experiments by writing parameters and corresponding results into an SQL database.',
   url = 'https://github.com/MarkusZopf/ExperimentTracker',

@@ -36,10 +36,8 @@ class Experiment():
 			raise
 
 	def save_results(self, clear_results=True, set_finished=False):
-		cursor = self.database_connection.cursor()
-
-		parameter_columns, parameter_values = self.create_sql_string(self.parameters, cursor)
-		results_columns, results_values = self.create_sql_string(self.results, cursor)
+		parameter_columns, parameter_values = self.create_sql_string(self.parameters)
+		results_columns, results_values = self.create_sql_string(self.results)
 
 		columns = parameter_columns + ', ' + results_columns
 		values = parameter_values + ', ' + results_values
@@ -48,20 +46,20 @@ class Experiment():
 			columns = 'finished, ' + columns
 			values = '1, ' + values
 
+		cursor = self.database_connection.cursor()
 		cursor.execute('INSERT INTO ' + self.project_name + ' (' + columns + ') VALUES (' + values + ')')
-
 		self.database_connection.commit()
 		cursor.close()
 
 		if clear_results:
 			self.results.clear()
 
-	def create_sql_string(self, dictionary, cursor):
+	def create_sql_string(self, dictionary):
 		columns = ''
 		values = ''
 		for column_name, value in dictionary.items():
-			if not self.does_column_already_exist(cursor, column_name):
-				self.create_column(cursor, column_name, value) # create column in case it does not already exist
+			if not self.does_column_already_exist(column_name):
+				self.create_column(column_name, value) # create column in case it does not already exist
 
 			columns += column_name + ','
 			if type(value) is bool:
@@ -73,18 +71,20 @@ class Experiment():
 		return columns, values
 
 	existing_columns = []
-	def does_column_already_exist(self, cursor, column_name):
+	def does_column_already_exist(self, column_name):
 		if column_name in self.existing_columns:
 			return True
 
 		else:
+			cursor = self.database_connection.cursor()
 			cursor.execute('SHOW COLUMNS FROM ' + self.project_name + ' LIKE %(column_name)s;', {'table_name': self.project_name, 'column_name': column_name})
 			does_column_already_exist = len(cursor.fetchall()) == 1
+			cursor.close()
 			if does_column_already_exist:
 				self.existing_columns.append(column_name)
 			return does_column_already_exist
 
-	def create_column(self, cursor, column_name, value):
+	def create_column(self, column_name, value):
 		if type(value) is bool:
 			field_definition = 'BOOLEAN NULL DEFAULT NULL'
 		elif type(value) is int:
@@ -94,15 +94,14 @@ class Experiment():
 		else:
 			field_definition = 'TEXT NULL DEFAULT NULL'
 
+		cursor = self.database_connection.cursor()
 		cursor.execute('ALTER TABLE ' + self.project_name + ' ADD COLUMN ' + column_name + ' ' + field_definition +';')
+		cursor.close()
 
 	def does_row_already_exist(self, parameter_names):
-		cursor = self.database_connection.cursor()
-
 		condition = ''
 		for parameter_name in parameter_names:
-			if not self.does_column_already_exist(cursor, parameter_name): 
-				cursor.close()
+			if not self.does_column_already_exist(parameter_name): 
 				return False # a row with the specified values cannot exist if the corresponding column does not exist
 
 			condition += parameter_name + '='
@@ -118,6 +117,7 @@ class Experiment():
 
 		condition = condition[:-5]
 
+		cursor = self.database_connection.cursor()
 		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE ' + condition + ';')
 		result = int(cursor.fetchone()['COUNT(*)']) > 0
 		cursor.close()
@@ -126,12 +126,11 @@ class Experiment():
 
 	def is_experiment_finished(self):
 		"""Tests if an experiments with the same parameters (except of the timestamp) is already set as finished in the database."""
-		cursor = self.database_connection.cursor()
+		
 
 		condition = ''
 		for parameter_name, parameter_value in self.parameters.items():
-			if not self.does_column_already_exist(cursor, parameter_name): 
-				cursor.close()
+			if not self.does_column_already_exist(parameter_name):
 				return False # an experiment with the specified parameter cannot exist if the corresponding column does not exist
 
 			if parameter_name != 'timestamp':
@@ -148,6 +147,7 @@ class Experiment():
 
 		condition = condition[:-5]
 		
+		cursor = self.database_connection.cursor()
 		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE finished = 1 AND ' + condition + ';')
 		result = int(cursor.fetchone()['COUNT(*)']) > 0
 		cursor.close()

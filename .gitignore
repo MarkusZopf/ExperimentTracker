@@ -1,3 +1,4 @@
 __pycache__/
 dist/
 experiment_tracker.egg-info
+/pipy upload commands.txt
