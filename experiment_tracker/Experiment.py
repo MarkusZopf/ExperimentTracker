@@ -91,3 +91,31 @@ class Experiment():
 			field_definition = 'TEXT NULL DEFAULT NULL'
 
 		cursor.execute('ALTER TABLE ' + self.project_name + ' ADD COLUMN ' + column_name + ' ' + field_definition +';')
+
+	def does_row_already_exist(self, parameter_names):
+		cursor = self.database_connection.cursor()
+
+		condition = ''
+		for parameter_name in parameter_names:
+			if not self.does_column_already_exist(cursor, parameter_name): 
+				cursor.close()
+				return False # a row with the specified values cannot exist if the corresponding column does not exist
+
+			condition += parameter_name + '='
+			value = self.parameters[parameter_name]
+			if type(value) is bool:
+				condition += str(int(value))
+			if type(value) is int or type(value) is float:
+				condition += str(value)
+			else:
+				condition += '\'' + str(value) + '\''
+
+			condition += ' AND '
+
+		condition = condition[:-5]
+
+		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE ' + condition + ';')
+		result = cursor.fetchone() is not None
+		cursor.close()
+
+		return result
