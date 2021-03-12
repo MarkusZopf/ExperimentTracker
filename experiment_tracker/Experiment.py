@@ -10,7 +10,8 @@ class Experiment():
 		self.database_config = database_config
 		self.project_name = project_name
 		
-		self.create_table()
+		if (self.database_config is not None and self.project_name is not None):
+			self.create_table()
 
 		if add_timestamp:
 			self.parameters['timestamp'] = str(int(time.time()))
@@ -41,22 +42,23 @@ class Experiment():
 			raise
 
 	def save_results(self, clear_results=True, set_finished=False):
-		parameter_columns, parameter_values = self.create_sql_string(self.parameters)
-		results_columns, results_values = self.create_sql_string(self.results)
+		if (self.database_config is not None and self.project_name is not None):
+			parameter_columns, parameter_values = self.create_sql_string(self.parameters)
+			results_columns, results_values = self.create_sql_string(self.results)
 
-		columns = parameter_columns + ', ' + results_columns
-		values = parameter_values + ', ' + results_values
+			columns = parameter_columns + ', ' + results_columns
+			values = parameter_values + ', ' + results_values
 
-		if set_finished:
-			columns = 'finished, ' + columns
-			values = '1, ' + values
+			if set_finished:
+				columns = 'finished, ' + columns
+				values = '1, ' + values
 
-		database_connection = self.get_database_connection()
-		cursor = database_connection.cursor()
-		cursor.execute('INSERT INTO ' + self.project_name + ' (' + columns + ') VALUES (' + values + ')')
-		database_connection.commit()
-		cursor.close()
-		database_connection.close()
+			database_connection = self.get_database_connection()
+			cursor = database_connection.cursor()
+			cursor.execute('INSERT INTO ' + self.project_name + ' (' + columns + ') VALUES (' + values + ')')
+			database_connection.commit()
+			cursor.close()
+			database_connection.close()
 
 		if clear_results:
 			self.results.clear()
@@ -141,30 +143,35 @@ class Experiment():
 	def is_experiment_finished(self):
 		"""Tests if an experiments with the same parameters (except of the timestamp) is already set as finished in the database."""
 
-		condition = ''
-		for parameter_name, parameter_value in self.parameters.items():
-			if not self.does_column_already_exist(parameter_name):
-				return False # an experiment with the specified parameter cannot exist if the corresponding column does not exist
+		if (self.database_config is not None and self.project_name is not None):
+			print('Error while connecting to database server. Check database configuration and connectivity.')
+			return None
 
-			if parameter_name != 'timestamp':
-				condition += parameter_name + '='
-				parameter_value = self.parameters[parameter_name]
-				if type(parameter_value) is bool:
-					condition += str(int(parameter_value))
-				elif type(parameter_value) is int or type(parameter_value) is float:
-					condition += str(parameter_value)
-				else:
-					condition += '\'' + str(parameter_value) + '\''
+		else:
+			condition = ''
+			for parameter_name, parameter_value in self.parameters.items():
+				if not self.does_column_already_exist(parameter_name):
+					return False # an experiment with the specified parameter cannot exist if the corresponding column does not exist
 
-				condition += ' AND '
+				if parameter_name != 'timestamp':
+					condition += parameter_name + '='
+					parameter_value = self.parameters[parameter_name]
+					if type(parameter_value) is bool:
+						condition += str(int(parameter_value))
+					elif type(parameter_value) is int or type(parameter_value) is float:
+						condition += str(parameter_value)
+					else:
+						condition += '\'' + str(parameter_value) + '\''
 
-		condition = condition[:-5]
-		
-		database_connection = self.get_database_connection()
-		cursor = database_connection.cursor()
-		cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE finished = 1 AND ' + condition + ';')
-		result = int(cursor.fetchone()['COUNT(*)']) > 0
-		cursor.close()
-		database_connection.close()
+					condition += ' AND '
 
-		return result
+			condition = condition[:-5]
+			
+			database_connection = self.get_database_connection()
+			cursor = database_connection.cursor()
+			cursor.execute('SELECT COUNT(*) FROM ' + self.project_name + ' WHERE finished = 1 AND ' + condition + ';')
+			result = int(cursor.fetchone()['COUNT(*)']) > 0
+			cursor.close()
+			database_connection.close()
+
+			return result
