@@ -3,13 +3,19 @@ import time
 
 class Experiment():
 
-	def __init__(self, database_config, project_name, add_timestamp=True):
+	def __init__(self, database_config=None, project_name=None, add_timestamp=True):
 		self.parameters = dict()
 		self.results = dict()
 
 		self.database_config = database_config
 		self.project_name = project_name
 		
+		self.create_table()
+
+		if add_timestamp:
+			self.parameters['timestamp'] = str(int(time.time()))
+
+	def create_table(self):
 		database_connection = self.get_database_connection()
 		cursor = database_connection.cursor()
 		cursor._defer_warnings = True
@@ -17,9 +23,6 @@ class Experiment():
 		database_connection.commit()
 		cursor.close()
 		database_connection.close()
-
-		if add_timestamp:
-			self.parameters['timestamp'] = str(int(time.time()))
 
 	def get_database_connection(self):
 		try:
